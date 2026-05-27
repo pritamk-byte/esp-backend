@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  CLIENT
+  WORKER
+  TELECALLER
+  INSPECTOR
+  ADMIN_MANAGER
+  SUPER_ADMIN
+}
+
+enum RequestStatus {
+  PENDING
+  UNDER_REVIEW
+  NEEDS_INSPECTION
+  INSPECTION_DONE
+  WAITING_WORKER
+  WORKER_ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+model User {
+  id                 String           @id @default(uuid())
+  email              String?           @unique
+  name               String?          // <-- NEW: Added Name field here!
+  phone              String?          @unique
+  role               Role             @default(CLIENT)
+  isVerified         Boolean          @default(false)
+  otp                String?  
+  otpExpiry          DateTime?
+  
+  // KYC Verification Fields for Workers
+  verificationStatus String           @default("UNVERIFIED") // UNVERIFIED, PENDING, APPROVED, REJECTED
+  idDocumentUrl      String?          
+
+  // A client can have many service requests
+  requests           ServiceRequest[] @relation("ClientRequests")
+  
+  // A worker can have many job interests
+  interests          JobInterest[]    @relation("WorkerInterests")
+  
+  // Link for Inspectors to be assigned to jobs
+  inspections        ServiceRequest[] @relation("InspectorRelation")
+  
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model ServiceRequest {
+  id               String        @id @default(uuid())
+  title            String
+  serviceType      String        
+  description      String
+  location         String
+  status           RequestStatus @default(PENDING)
+  adminNote        String?   // Instructions from admin to inspector
+  
+  clientId         String
+  client           User          @relation("ClientRequests", fields: [clientId], references: [id])
+  
+  // Inspector & Telecaller Fields
+  inspectorId      String?
+  inspector        User?         @relation("InspectorRelation", fields: [inspectorId], references: [id])
+  inspectionDate   DateTime?
+  inspectionNotes  String?
+  
+  // Pricing and Quoting Fields
+  quotedPrice      Float?
+  finalPrice       Float?
+  paymentStatus    String        @default("UNPAID") // UNPAID, PARTIAL, FULLY_PAID
+  
+  // A single request can have multiple workers interested in it
+  interests        JobInterest[] @relation("RequestInterests")
+  
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+// The mapping table that connects Workers to Service Requests
+model JobInterest {
+  id               String         @id @default(uuid())
+  
+  workerId         String
+  worker           User           @relation("WorkerInterests", fields: [workerId], references: [id])
+  
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation("RequestInterests", fields: [serviceRequestId], references: [id])
+  
+  status           String         @default("PENDING") 
+  
+  createdAt        DateTime       @default(now())
+
+  // A worker can only express interest in a specific job once
+  @@unique([workerId, serviceRequestId]) 
+}
