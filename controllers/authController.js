@@ -1,19 +1,6 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../utils/db');
-const nodemailer = require('nodemailer');
-
-// 1. SET UP BREVO MAILER (WITH POOLING FOR SPEED)
-const transporter = nodemailer.createTransport({
-    host: 'smtp-relay.brevo.com',
-    port: 587,
-    secure: false,
-    pool: true, // 🚀 NEW: Keeps the connection open so future emails send instantly
-    maxConnections: 5,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-});
+// 🚀 Nodemailer has been completely removed!
 
 // POST /api/auth/send-otp
 const requestOtp = async (req, res) => {
@@ -31,31 +18,52 @@ const requestOtp = async (req, res) => {
             create: { email: cleanEmail, role: 'CLIENT', otp, otpExpiry }
         });
 
-        const mailOptions = {
-            from: `"Engineering Platform" <${process.env.BREVO_EMAIL}>`,
-            to: cleanEmail,
-            subject: "Your Platform Login Code",
-            html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; max-w: 500px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 10px;">
-                    <h2 style="color: #1f2937;">Welcome to the Platform!</h2>
-                    <p style="color: #4b5563;">Your secure login code is:</p>
-                    <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; text-align: center; margin: 20px 0;">
-                        <h1 style="color: #4F46E5; letter-spacing: 5px; margin: 0;">${otp}</h1>
-                    </div>
-                    <p style="color: #6b7280; font-size: 12px;">This code will expire in 10 minutes.</p>
-                </div>
-            `
+        // 🚀 NEW: Using the Brevo API directly to bypass Render's SMTP block
+        const sendEmailViaAPI = async () => {
+            try {
+                const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+                    method: 'POST',
+                    headers: {
+                        'accept': 'application/json',
+                        'api-key': process.env.BREVO_API_KEY,
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sender: { 
+                            // 🚨 Ensure process.env.BREVO_EMAIL exactly matches your verified Brevo address
+                            email: process.env.BREVO_EMAIL || "pritamkumarpoddar2002@gmail.com", 
+                            name: "Engineering Platform" 
+                        },
+                        to: [{ email: cleanEmail }],
+                        subject: "Your Platform Login Code",
+                        htmlContent: `
+                            <div style="font-family: Arial, sans-serif; padding: 20px; max-w: 500px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 10px;">
+                                <h2 style="color: #1f2937;">Welcome to the Platform!</h2>
+                                <p style="color: #4b5563;">Your secure login code is:</p>
+                                <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; text-align: center; margin: 20px 0;">
+                                    <h1 style="color: #4F46E5; letter-spacing: 5px; margin: 0;">${otp}</h1>
+                                </div>
+                                <p style="color: #6b7280; font-size: 12px;">This code will expire in 10 minutes.</p>
+                            </div>
+                        `
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error("Brevo API Error:", errorData);
+                } else {
+                    console.log(`✅ Background email triggered for ${cleanEmail} via API`);
+                }
+            } catch (err) {
+                console.error("Background Email Failed:", err);
+            }
         };
 
         // 🚀 FIRE AND FORGET 🚀
-        // Notice there is NO "await" here! The email sends in the background.
-        transporter.sendMail(mailOptions).catch(err => {
-            console.error("Background Email Failed:", err);
-        });
+        // Triggers the API call in the background without making the user wait
+        sendEmailViaAPI();
         
-        console.log(`✅ Background email triggered for ${cleanEmail}`);
-        
-        // This triggers instantly, stopping the loading spinner immediately!
         res.status(200).json({ message: "OTP sent successfully to your email!" });
 
     } catch (error) {
@@ -88,15 +96,11 @@ const verifyOtp = async (req, res) => {
             { expiresIn: '1d' }
         );
 
-        // 🚀 PUT 'AWAIT' BACK HERE! 🚀
-        // Database calls are lightning fast (10ms), so we await them 
-        // to ensure the connection safely closes and returns to the pool.
         await prisma.user.update({
             where: { email: cleanEmail },
             data: { otp: null, otpExpiry: null, isVerified: true }
         });
 
-        // Let them into the dashboard!
         res.status(200).json({ message: "Login successful!", token, role: user.role });
         
     } catch (error) {
@@ -104,4 +108,5 @@ const verifyOtp = async (req, res) => {
         res.status(500).json({ error: "Failed to verify OTP." });
     }
 };
+
 module.exports = { requestOtp, verifyOtp };
