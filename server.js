@@ -23,11 +23,12 @@ const app = express();
 // ==========================================
 app.use(cors({
   origin: [
-    'http://localhost:5173', // Your local Vite React app
-    process.env.FRONTEND_URL // Your live Vercel React app
+    'http://localhost:5173', 
+    'https://esp-frontend-xxxx.vercel.app' // 🚀 Replace with your EXACT Vercel URL (No slash at the end!)
   ],
   credentials: true
 }));
+
 
 app.use(express.json());
 
