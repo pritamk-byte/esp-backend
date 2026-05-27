@@ -21,11 +21,16 @@ const app = express();
 // ==========================================
 // 🚀 2. TEMPORARY "ALLOW ALL" CORS 
 // ==========================================
+// ==========================================
+// 🚀 2. PRODUCTION CORS CONFIGURATION
+// ==========================================
 app.use(cors({
-  origin: true, // This automatically accepts the exact URL Vercel asks with!
+  origin: [
+    'http://localhost:5173', 
+    process.env.FRONTEND_URL // 🚀 Back to the variable!
+  ],
   credentials: true
 }));
-
 
 app.use(express.json());
 
