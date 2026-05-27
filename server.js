@@ -19,13 +19,10 @@ const authorizeRoles = require('./middleware/roleMiddleware');
 const app = express();
 
 // ==========================================
-// 🚀 2. PRODUCTION CORS CONFIGURATION
+// 🚀 2. TEMPORARY "ALLOW ALL" CORS 
 // ==========================================
 app.use(cors({
-  origin: [
-    'http://localhost:5173', 
-    'https://esp-frontend-mauve.vercel.app/' // 🚀 Replace with your EXACT Vercel URL (No slash at the end!)
-  ],
+  origin: true, // This automatically accepts the exact URL Vercel asks with!
   credentials: true
 }));
 
