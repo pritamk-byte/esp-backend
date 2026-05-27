@@ -24,7 +24,7 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:5173', 
-    'https://esp-frontend-xxxx.vercel.app' // 🚀 Replace with your EXACT Vercel URL (No slash at the end!)
+    'https://esp-frontend-mauve.vercel.app/' // 🚀 Replace with your EXACT Vercel URL (No slash at the end!)
   ],
   credentials: true
 }));
