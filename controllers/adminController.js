@@ -76,7 +76,8 @@ const assignWorker = async (req, res) => {
         res.status(500).json({ error: "Failed to assign worker." });
     }
 };
-// NEW: Fetch all workers for KYC review
+
+// Fetch all workers for KYC review
 const getAllWorkers = async (req, res) => {
     try {
         const workers = await prisma.user.findMany({
@@ -89,10 +90,10 @@ const getAllWorkers = async (req, res) => {
     }
 };
 
-// NEW: Approve or Reject a Worker's KYC
+// Approve or Reject a Worker's KYC
 const updateWorkerKYC = async (req, res) => {
     const { workerId } = req.params;
-    const { status, isVerified } = req.body; // status: 'APPROVED' or 'REJECTED'
+    const { status, isVerified } = req.body; 
 
     try {
         const user = await prisma.user.update({
@@ -107,7 +108,8 @@ const updateWorkerKYC = async (req, res) => {
         res.status(500).json({ error: "Failed to update KYC status." });
     }
 };
-// NEW: Admin adds a quoted price to a service request
+
+// Admin adds a quoted price to a service request
 const addQuote = async (req, res) => {
     const { id } = req.params;
     const { quotedPrice } = req.body;
@@ -117,7 +119,7 @@ const addQuote = async (req, res) => {
             where: { id },
             data: { 
                 quotedPrice: parseFloat(quotedPrice),
-                status: 'UNDER_REVIEW' // Puts it in the client's court to review
+                status: 'UNDER_REVIEW' 
             }
         });
         res.status(200).json({ message: "Quote added successfully!", request });
@@ -126,7 +128,7 @@ const addQuote = async (req, res) => {
     }
 };
 
-// NEW: Fetch all users with the INSPECTOR role
+// Fetch all users with the INSPECTOR role
 const getAllInspectors = async (req, res) => {
     try {
         const inspectors = await prisma.user.findMany({
@@ -139,17 +141,17 @@ const getAllInspectors = async (req, res) => {
     }
 };
 
-// NEW: Assign an inspector to a specific service request
+// Assign an inspector to a specific service request
 const assignInspector = async (req, res) => {
     const { id } = req.params;
-    const { inspectorId, adminNote } = req.body; // <--- Extract adminNote here
+    const { inspectorId, adminNote } = req.body; 
 
     try {
         const request = await prisma.serviceRequest.update({
             where: { id },
             data: { 
                 inspectorId,
-                adminNote, // <--- Save it to the database
+                adminNote,
                 status: 'NEEDS_INSPECTION'
             }
         });
@@ -159,11 +161,10 @@ const assignInspector = async (req, res) => {
     }
 };
 
-// NEW: Super Admin changes a user's role
+// Super Admin changes a user's role
 const updateUserRole = async (req, res) => {
     const { email, newRole } = req.body;
 
-    // Validate that the role is actually one of your Prisma Enum values
     const validRoles = ['CLIENT', 'WORKER', 'TELECALLER', 'INSPECTOR', 'ADMIN_MANAGER', 'SUPER_ADMIN'];
     if (!validRoles.includes(newRole)) {
         return res.status(400).json({ error: "Invalid role selected." });
@@ -180,5 +181,73 @@ const updateUserRole = async (req, res) => {
     }
 };
 
-// Update your export to include the two new functions!
-module.exports = { getAllRequests, updateRequestStatus, assignWorker, getAllWorkers, updateWorkerKYC, addQuote, getAllInspectors, assignInspector, updateUserRole };
+// ==========================================
+// 🚀 NEW: DASHBOARD ANALYTICS & CLIENTS
+// ==========================================
+
+// GET /api/admin/stats
+const getDashboardStats = async (req, res) => {
+    try {
+        const totalTasks = await prisma.serviceRequest.count();
+
+        const activeWorkers = await prisma.user.count({
+            where: { role: 'WORKER', verificationStatus: 'APPROVED' }
+        });
+
+        const pendingKYC = await prisma.user.count({
+            where: { role: 'WORKER', verificationStatus: 'PENDING' }
+        });
+
+        const revenue = await prisma.serviceRequest.aggregate({
+            _sum: { finalPrice: true },
+            where: { paymentStatus: 'FULLY_PAID' }
+        });
+
+        res.status(200).json({
+            totalTasks,
+            activeWorkers,
+            pendingKYC,
+            totalEarned: revenue._sum.finalPrice || 0
+        });
+    } catch (error) {
+        console.error("Stats API Error:", error);
+        res.status(500).json({ error: "Failed to fetch dashboard statistics." });
+    }
+};
+
+// GET /api/admin/clients
+const getAllClients = async (req, res) => {
+    try {
+        const clients = await prisma.user.findMany({
+            where: { role: 'CLIENT' },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                createdAt: true
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        res.status(200).json(clients);
+    } catch (error) {
+        console.error("Clients API Error:", error);
+        res.status(500).json({ error: "Failed to fetch clients." });
+    }
+};
+
+// Export ALL functions, including the two new ones!
+module.exports = { 
+    getAllRequests, 
+    updateRequestStatus, 
+    assignWorker, 
+    getAllWorkers, 
+    updateWorkerKYC, 
+    addQuote, 
+    getAllInspectors, 
+    assignInspector, 
+    updateUserRole,
+    getDashboardStats,  // <-- Added
+    getAllClients       // <-- Added
+};

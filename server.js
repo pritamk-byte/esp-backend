@@ -8,7 +8,10 @@ require('dotenv').config();
 const { requestOtp, verifyOtp } = require('./controllers/authController');
 const { getMyProfile, completeOnboarding } = require('./controllers/userController'); 
 const { createRequest, getMyRequests, acceptQuote } = require('./controllers/clientController');
-const { getAllRequests, updateRequestStatus, assignWorker, getAllWorkers, updateWorkerKYC, addQuote, getAllInspectors, assignInspector, updateUserRole } = require('./controllers/adminController');
+
+// 🚀 FIX: Added getDashboardStats and getAllClients to this import list!
+const { getAllRequests, updateRequestStatus, assignWorker, getAllWorkers, updateWorkerKYC, addQuote, getAllInspectors, assignInspector, updateUserRole, getDashboardStats, getAllClients } = require('./controllers/adminController');
+
 const { getAvailableJobs, expressInterest, getMyAssignedJobs, completeJob, getWorkerProfile, submitKYC } = require('./controllers/workerController');
 const { getAssignedInspections, submitInspectionReport } = require('./controllers/inspectorController');
 const { getCallList, addCallNote } = require('./controllers/telecallerController');
@@ -19,15 +22,12 @@ const authorizeRoles = require('./middleware/roleMiddleware');
 const app = express();
 
 // ==========================================
-// 🚀 2. TEMPORARY "ALLOW ALL" CORS 
-// ==========================================
-// ==========================================
 // 🚀 2. PRODUCTION CORS CONFIGURATION
 // ==========================================
 app.use(cors({
   origin: [
     'http://localhost:5173', 
-    process.env.FRONTEND_URL // 🚀 Back to the variable!
+    process.env.FRONTEND_URL 
   ],
   credentials: true
 }));
@@ -74,7 +74,11 @@ app.post('/api/admin/requests/:id/assign-inspector', authenticateToken, authoriz
 app.get('/api/admin/workers', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN_MANAGER', 'TELECALLER'), getAllWorkers);
 app.put('/api/admin/workers/:workerId/kyc', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN_MANAGER', 'TELECALLER'), updateWorkerKYC);
 
-// Telecaller Routes (Fixed array syntax)
+// 🚀 NEW: Dashboard Analytics & Clients
+app.get('/api/admin/stats', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN_MANAGER'), getDashboardStats);
+app.get('/api/admin/clients', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN_MANAGER', 'TELECALLER'), getAllClients);
+
+// Telecaller Routes 
 app.get('/api/telecaller/jobs', authenticateToken, authorizeRoles('TELECALLER', 'SUPER_ADMIN'), getCallList);
 app.put('/api/telecaller/jobs/:id/note', authenticateToken, authorizeRoles('TELECALLER', 'SUPER_ADMIN'), addCallNote);
 
