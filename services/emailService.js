@@ -11,7 +11,7 @@ const sendOtpEmail = async (userEmail, otp) => {
       },
       body: JSON.stringify({
         sender: { 
-          email: "YOUR_VERIFIED_BREVO_EMAIL@gmail.com", // 🚨 Replace with your actual Brevo email
+          email: "pritamkumarpoddar2002@gmail.com", // 🚨 Replace with your actual Brevo email
           name: "Engineering Platform" 
         },
         to: [{ email: userEmail }],
